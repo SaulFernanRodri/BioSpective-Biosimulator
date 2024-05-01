@@ -1,0 +1,67 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>SINGulator</title>
+</head>
+<body>
+	<div style="font-size: 12px">
+		<table border=0 cellspacing=0 cellpadding=6>
+			<tr>
+				<td valign=top><img src="imgs/icon.png"></td>
+				<td valign=top>
+					<h2>
+						<a href="http://sing.ei.uvigo.es/singulator/">SINGulator</a>
+					</h2> By <a href="http://sing.ei.uvigo.es/">SING</a>
+				</td>
+			</tr>
+		</table>
+		<p>Recent computational methodologies, such as agent-based
+			modelling, support the search for explanatory insight into the
+			collective behaviour of molecules and bring forward the discussion of
+			intrinsic noise while simulating biological events. The present work
+			contributes to this line of research by assembling and validating a
+			molecular-scale agent-based model for the simulation of enzymatic
+			reactions at experimentally measured concentrations. The model
+			incorporates stochasticity and spatial dependence, using diffusing
+			and reacting particles with physical dimensions. We started by
+			adjusting the information from classical theories, namely enzymatic
+			rates and diffusion coefficients, to the information required by the
+			computational agents, i.e. collision efficiency, interaction logic
+			between agents, the time scale associated with interactions (e.g.
+			kinetics), and agent velocity. We developed specific strategies to
+			implement the model in a way that could use and reproduce
+			experimental measures of diffusion and kinetics, in the form of
+			Michaelis-Menten parameters. The velocity of the agents was defined
+			in an iterative manner to match the corresponding theoretical
+			diffusion coefficients.</p>
+		<p>
+			Agents capable of diffusion and reaction take on physical dimensions
+			based on the data reported by scientific literature and the <a
+				href="http://www.brenda-enzymes.org/" target="_BLANK">BRENDA
+				database</a>. Enzymes and metabolites are represented by agents with
+			spherical approximations (by the hydrodynamic or van der Walls
+			radius) of the excluded volume of the biomolecules. The diffusion
+			coefficients were calculated using the Stokes-Einstein equation for
+			diffusion of spherical particles in a liquid.
+		</p>
+		<p>Enzymatic reactions are defined by the computational parameters
+			simkcat, simKm and reaction radius. The simkcat is the number of time
+			steps between the formation of enzyme-substrate reaction complex and
+			the product release. The simKm quantifies the probability of a
+			successful collision between an interacting enzyme and substrate.
+			And, the reaction radius enables the enzyme agent to detect substrate
+			agents off the immediate vicinity and test more possible
+			interactions.</p>
+		</h3>
+
+
+		<h3>Basic controls:</h3>
+		<ul>
+			<li><tt>Right click</tt> rotate the camera from the origin.
+			<li><tt>Left cules</tt> move the camera from the origin.
+			<li><tt>Mouse wheel</tt> do zoom over the simulation.
+		</ul>
+		<p>For more information about the SINGulator check the user
+			manual.</p>
+	</div>
+</body>
