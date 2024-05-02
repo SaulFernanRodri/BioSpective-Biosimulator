@@ -309,7 +309,7 @@ public class SINGulator_Model extends SimState {
                             e.printStackTrace();
                         }
                     }
-                    if(steps % 100 == 0) {
+                    if(steps % 500 == 0) {
                         registerDataSimulation();
                     }
                 }
