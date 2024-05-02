@@ -327,7 +327,7 @@ public class SINGulator_Model extends SimState {
 
         //File dataFile = new File("C:\\Users\\Saul\\Desktop\\TFG\\pathogenic interactions\\data\\data_y\\" + DataName);
         //File dataFile = new File("C:\\Users\\Curmis4th\\Desktop\\Saul\\pathogenic interactions\\data\\data_y\\" + DataName);
-        File dataFile = new File("D:\\workspace\\saul\\data_y" + DataName);
+        File dataFile = new File("D:\\workspace\\saul\\data_y\\" + DataName);
         dataFilePath = dataFile.getAbsolutePath();
         List<String> toWriteData = new ArrayList<String>();
 
