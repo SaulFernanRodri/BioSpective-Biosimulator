@@ -309,9 +309,9 @@ public class SINGulator_Model extends SimState {
                             e.printStackTrace();
                         }
                     }
-                    if(steps % 500 == 0) {
+
                         registerDataSimulation();
-                    }
+
                 }
             });
             System.out.println("Setting all in the environment...");
