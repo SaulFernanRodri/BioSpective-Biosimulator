@@ -1,7 +1,6 @@
 package es.uvigo.ei.sing.singulator.simulator;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -25,6 +24,7 @@ import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.field.continuous.Continuous3D;
 import sim.util.Bag;
+
 import java.time.LocalDateTime;
 
 public class SINGulator_Model extends SimState {
@@ -104,31 +104,30 @@ public class SINGulator_Model extends SimState {
         this.availableProcessorsCreation = configuration.getProcCreation();
         this.writeResultsEvery = configuration.getWriteResultsEvery();
 
-        try{
+        try {
             this.randomRebound = configuration.getRandomRebound();
-            System.out.println("Rebotes aleatorios en "+this.randomRebound+"% de moleculas");
-        }catch (NullPointerException ex){
+            System.out.println("Rebotes aleatorios en " + this.randomRebound + "% de moleculas");
+        } catch (NullPointerException ex) {
             System.out.println("No se ha detectado valor para aletaoriedad en choques de simulados de moleculas. Generando aletorio...");
             Random r = new Random();
             this.randomRebound = r.nextInt(101);
-            System.out.println("Rebotes aleatorios en "+this.randomRebound+"% de moleculas");
+            System.out.println("Rebotes aleatorios en " + this.randomRebound + "% de moleculas");
         }
 
-        try{
+        try {
             this.stepRandomRebound = configuration.getStepsRandomRebound();
-            System.out.println("Rebotes aleatorios cada "+this.stepRandomRebound+" pasos");
-        }catch (NullPointerException ex){
+            System.out.println("Rebotes aleatorios cada " + this.stepRandomRebound + " pasos");
+        } catch (NullPointerException ex) {
             System.out.println("No se ha detectado valor para pasos entre choques simulados. Generando aletorio...");
             Random r = new Random();
             this.stepRandomRebound = r.nextInt(401);
-            System.out.println("Rebotes aleatorios cada "+this.stepRandomRebound+" pasos");
+            System.out.println("Rebotes aleatorios cada " + this.stepRandomRebound + " pasos");
         }
 
         String[] emails = configuration.getEmailTo();
         emailTo = new HashSet<String>();
         for (String email : emails) {
-            if (!email.isEmpty())
-                emailTo.add(email);
+            if (!email.isEmpty()) emailTo.add(email);
         }
 
         this.outputPath = configuration.getDirOutput();
@@ -189,8 +188,7 @@ public class SINGulator_Model extends SimState {
         // rebotan)
         Stack<iMolecule> molecules;
         molecules = simulatorLogic.extractMoleculeInformation(mapNameInformation);
-        if (hasRibosome)
-            molecules.addAll(simulatorLogic.extractRibosomeInformation(mapNameInformation));
+        if (hasRibosome) molecules.addAll(simulatorLogic.extractRibosomeInformation(mapNameInformation));
 
         // Create the environment with the standard discretization (agent max
         // radius * 2)
@@ -215,8 +213,9 @@ public class SINGulator_Model extends SimState {
             schedule.scheduleRepeating(Schedule.EPOCH, 1, new ExecuteAll(this));
             // Last to go: Anonymous agent to write results and stop the
             // simulation if needed
-            schedule.scheduleRepeating ( Schedule.EPOCH, 2, new Steppable() {
+            schedule.scheduleRepeating(Schedule.EPOCH, 2, new Steppable() {
                 private static final long serialVersionUID = 1L;
+
                 @Override
                 public void step(SimState arg0) {
                     long steps = schedule.getSteps();
@@ -225,19 +224,14 @@ public class SINGulator_Model extends SimState {
                     if (finish) {
                         try {
                             System.out.println("TOTAL TIMESTEPS: " + steps);
-                            Files.write(Paths.get(outputPath, fileResultsName + "_" + fileSuffix + "_lastLocation_" + steps + "ts.txt"),
-                                    mapIDLastRebound.values(), StandardOpenOption.CREATE_NEW);
-                            Files.write(
-                                    Paths.get(outputPath, fileResultsName + "_" + fileSuffix + "_lastLocation_Environment_"
-                                            + steps + "ts.txt"),
-                                    mapIDLastReboundEnvironment.values(), StandardOpenOption.CREATE_NEW);
+                            Files.write(Paths.get(outputPath, fileResultsName + "_" + fileSuffix + "_lastLocation_" + steps + "ts.txt"), mapIDLastRebound.values(), StandardOpenOption.CREATE_NEW);
+                            Files.write(Paths.get(outputPath, fileResultsName + "_" + fileSuffix + "_lastLocation_Environment_" + steps + "ts.txt"), mapIDLastReboundEnvironment.values(), StandardOpenOption.CREATE_NEW);
 
                             List<String> cellConsumed = new ArrayList<>();
                             for (Cell cell : mapIdCell.values()) {
                                 cellConsumed.add(cell.getCellName() + "\t" + cell.getId() + "\t" + cell.getConsumed());
                             }
-                            Files.write(Paths.get(outputPath, fileResultsName + "_" + fileSuffix + "_cellConsumed_" + steps + "ts.txt"),
-                                    cellConsumed, StandardOpenOption.CREATE_NEW);
+                            Files.write(Paths.get(outputPath, fileResultsName + "_" + fileSuffix + "_cellConsumed_" + steps + "ts.txt"), cellConsumed, StandardOpenOption.CREATE_NEW);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -303,14 +297,16 @@ public class SINGulator_Model extends SimState {
                             // Write results
                             toWrite.add(value);
 
-                            Files.write(Paths.get(file.getPath()), toWrite, StandardCharsets.UTF_8,
-                                    StandardOpenOption.APPEND);
+                            Files.write(Paths.get(file.getPath()), toWrite, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
                     }
 
-                        registerDataSimulation();
+                    registerDataSimulation();
+                    if (steps % writeResultsEvery == 0) {
+                        executePythonScript();
+                    }
 
                 }
             });
@@ -362,17 +358,16 @@ public class SINGulator_Model extends SimState {
                     }
 
                     LocalDateTime now = LocalDateTime.now(); // Get the current date and time
-                    toWriteData.add(id + "\t" + schedule.getSteps() + "\t" + type +"\t" + name + "\t" + x + "\t" + y + "\t" + z + "\t" + now);
+                    toWriteData.add(id + "\t" + schedule.getSteps() + "\t" + type + "\t" + name + "\t" + x + "\t" + y + "\t" + z + "\t" + now);
                 }
             }
             try {
-                Files.write(Paths.get(dataFile.getPath()), toWriteData, StandardCharsets.UTF_8,
-                        Files.exists(Paths.get(dataFile.getPath())) ? StandardOpenOption.APPEND : StandardOpenOption.CREATE);
+                Files.write(Paths.get(dataFile.getPath()), toWriteData, StandardCharsets.UTF_8, Files.exists(Paths.get(dataFile.getPath())) ? StandardOpenOption.APPEND : StandardOpenOption.CREATE);
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
-        }catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -386,14 +381,10 @@ public class SINGulator_Model extends SimState {
 
         // Send email
         if (!emailTo.isEmpty() && (!canGUI || !activateGUI)) {
-            String body = Functions
-                    .readFileInString(SINGulator_Model.class.getResourceAsStream("/resources/mailBody.html"));
+            String body = Functions.readFileInString(SINGulator_Model.class.getResourceAsStream("/resources/mailBody.html"));
 
-            if (!outputPath.isEmpty() && resultsFilePath != null && displacementFilePath != null
-                    && zoneTimeStepPath != null) {
-                Functions.sendEmailWithAttachment(emailTo,
-                        Constants.EMAIL_TITLE_1 + simulationName + Constants.EMAIL_TITLE_2, body,
-                        Paths.get(resultsFilePath), Paths.get(displacementFilePath), Paths.get(zoneTimeStepPath));
+            if (!outputPath.isEmpty() && resultsFilePath != null && displacementFilePath != null && zoneTimeStepPath != null) {
+                Functions.sendEmailWithAttachment(emailTo, Constants.EMAIL_TITLE_1 + simulationName + Constants.EMAIL_TITLE_2, body, Paths.get(resultsFilePath), Paths.get(displacementFilePath), Paths.get(zoneTimeStepPath));
             } else {
                 Functions.sendEmail(emailTo, Constants.EMAIL_TITLE_1 + simulationName + Constants.EMAIL_TITLE_2, body);
             }
@@ -426,13 +417,11 @@ public class SINGulator_Model extends SimState {
             if (!displacementFile.exists() && !zoneTimeStepFile.exists()) {
                 Files.createFile(Paths.get(displacementFile.getPath()));
                 // Creation of displacement file and its headers
-                toWriteDiplacement.add(
-                        "ID\tType\tTimestep\tTotalDistance\tInitialPosition X\tInitialPosition Y\tInitialPosition Z\tFinalPosition X\tFinalPosition Y\tFinalPosition Z\tHasCrash\tStill alive\tX\tY\tZ\tR\tD=(R^2)/(6*t)");
+                toWriteDiplacement.add("ID\tType\tTimestep\tTotalDistance\tInitialPosition X\tInitialPosition Y\tInitialPosition Z\tFinalPosition X\tFinalPosition Y\tFinalPosition Z\tHasCrash\tStill alive\tX\tY\tZ\tR\tD=(R^2)/(6*t)");
 
                 // Creation of zoneTimeStep file and its headers
                 Files.createFile(Paths.get(zoneTimeStepFile.getPath()));
-                toWriteZoneTime.add(
-                        "ID\tType\tZone Outer membrane (ts) \tZone Outer periplasm (ts)\tZone Peptidoglycan (ts)\tZone Inner periplasm (ts)\tZone Inner membrane (ts)\tZone Cytoplasm (ts)");
+                toWriteZoneTime.add("ID\tType\tZone Outer membrane (ts) \tZone Outer periplasm (ts)\tZone Peptidoglycan (ts)\tZone Inner periplasm (ts)\tZone Inner membrane (ts)\tZone Cytoplasm (ts)");
             }
 
             Bag agents = environment.getAllObjects();
@@ -450,18 +439,10 @@ public class SINGulator_Model extends SimState {
                 r = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
 
                 // Add data for displacement file
-                toWriteDiplacement.add(agent.getId() + "\t" + agent.getName() + "\t" + schedule.getSteps() + "\t"
-                        + agent.getTotalDistance() + "\t" + agent.getInitialPosition().x + "\t"
-                        + agent.getInitialPosition().y + "\t" + agent.getInitialPosition().z + "\t"
-                        + agent.getFinalPosition().x + "\t" + agent.getFinalPosition().y + "\t"
-                        + agent.getFinalPosition().z + "\t" + agent.isHasCrashWihtEnvironment() + "\tfalse\t" + x + "\t"
-                        + y + "\t" + z + "\t" + r + "\t" + (Math.pow(r, 2)) / (6 * schedule.getSteps()));
+                toWriteDiplacement.add(agent.getId() + "\t" + agent.getName() + "\t" + schedule.getSteps() + "\t" + agent.getTotalDistance() + "\t" + agent.getInitialPosition().x + "\t" + agent.getInitialPosition().y + "\t" + agent.getInitialPosition().z + "\t" + agent.getFinalPosition().x + "\t" + agent.getFinalPosition().y + "\t" + agent.getFinalPosition().z + "\t" + agent.isHasCrashWihtEnvironment() + "\tfalse\t" + x + "\t" + y + "\t" + z + "\t" + r + "\t" + (Math.pow(r, 2)) / (6 * schedule.getSteps()));
 
                 // Add data for zoneTimeStep file
-                toWriteZoneTime.add(agent.getId() + "\t" + agent.getName() + "\t" + agent.getTimeStepForZone(1) + "\t"
-                        + agent.getTimeStepForZone(2) + "\t" + agent.getTimeStepForZone(3) + "\t"
-                        + agent.getTimeStepForZone(4) + "\t" + agent.getTimeStepForZone(5) + "\t"
-                        + agent.getTimeStepForZone(6));
+                toWriteZoneTime.add(agent.getId() + "\t" + agent.getName() + "\t" + agent.getTimeStepForZone(1) + "\t" + agent.getTimeStepForZone(2) + "\t" + agent.getTimeStepForZone(3) + "\t" + agent.getTimeStepForZone(4) + "\t" + agent.getTimeStepForZone(5) + "\t" + agent.getTimeStepForZone(6));
             }
 
             // Go over alive agents
@@ -476,30 +457,20 @@ public class SINGulator_Model extends SimState {
                         r = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
 
                         // Add data for displacement file
-                        toWriteDiplacement.add(aux.getId() + "\t" + aux.getName() + "\t" + schedule.getSteps() + "\t"
-                                + aux.getTotalDistance() + "\t" + aux.getInitialPosition().x + "\t"
-                                + aux.getInitialPosition().y + "\t" + aux.getInitialPosition().z + "\t"
-                                + aux.getFinalPosition().x + "\t" + aux.getFinalPosition().y + "\t"
-                                + aux.getFinalPosition().z + "\t" + aux.isHasCrashWihtEnvironment() + "\ttrue\t" + x
-                                + "\t" + y + "\t" + z + "\t" + r + "\t" + (Math.pow(r, 2)) / (6 * schedule.getSteps()));
+                        toWriteDiplacement.add(aux.getId() + "\t" + aux.getName() + "\t" + schedule.getSteps() + "\t" + aux.getTotalDistance() + "\t" + aux.getInitialPosition().x + "\t" + aux.getInitialPosition().y + "\t" + aux.getInitialPosition().z + "\t" + aux.getFinalPosition().x + "\t" + aux.getFinalPosition().y + "\t" + aux.getFinalPosition().z + "\t" + aux.isHasCrashWihtEnvironment() + "\ttrue\t" + x + "\t" + y + "\t" + z + "\t" + r + "\t" + (Math.pow(r, 2)) / (6 * schedule.getSteps()));
 
                         // Add data for zoneTimeStep file
-                        toWriteZoneTime.add(aux.getId() + "\t" + aux.getName() + "\t" + aux.getTimeStepForZone(1) + "\t"
-                                + aux.getTimeStepForZone(2) + "\t" + aux.getTimeStepForZone(3) + "\t"
-                                + aux.getTimeStepForZone(4) + "\t" + aux.getTimeStepForZone(5) + "\t"
-                                + aux.getTimeStepForZone(6));
+                        toWriteZoneTime.add(aux.getId() + "\t" + aux.getName() + "\t" + aux.getTimeStepForZone(1) + "\t" + aux.getTimeStepForZone(2) + "\t" + aux.getTimeStepForZone(3) + "\t" + aux.getTimeStepForZone(4) + "\t" + aux.getTimeStepForZone(5) + "\t" + aux.getTimeStepForZone(6));
                     }
                 }
             }
 
             try {
                 // Write displacement file
-                Files.write(Paths.get(displacementFile.getPath()), toWriteDiplacement, StandardCharsets.UTF_8,
-                        StandardOpenOption.APPEND);
+                Files.write(Paths.get(displacementFile.getPath()), toWriteDiplacement, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
 
                 // Write zoneTimeStep file
-                Files.write(Paths.get(zoneTimeStepFile.getPath()), toWriteZoneTime, StandardCharsets.UTF_8,
-                        StandardOpenOption.APPEND);
+                Files.write(Paths.get(zoneTimeStepFile.getPath()), toWriteZoneTime, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -597,6 +568,54 @@ public class SINGulator_Model extends SimState {
 
         return toRet;
     }
+
+    private static void executePythonScript() {
+        // Ruta al script de Python
+        String pythonScriptPath = "C:\\Users\\Saul\\Desktop\\TFG\\BioSpective\\app\\main.py";
+        String param = "-o predict -r \"C:\\Users\\Saul\\Desktop\\TFG\\pathogenic interactions\\data\\data_peptide10\\data.csv\" " +
+                "-j \"C:\\Users\\Saul\\Desktop\\TFG\\pathogenic interactions\\inputs\\Singulator - PCQuorum_1Sm1SmX10_peptide.json\" " +
+                "# -c 2 -n peptide_10 -ts 50 -tg \"mocromolecula\" -csv \"prediction/\"";
+
+        // Construye el comando con parámetros
+        String[] command = new String[]{"python", pythonScriptPath, param};
+
+        // Crea el ProcessBuilder
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+
+        try {
+            // Inicia el proceso
+            Process process = processBuilder.start();
+
+            // Captura la salida del proceso
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
+
+            // Espera a que el proceso termine y captura el código de salida
+            int exitCode = process.waitFor();
+            System.out.println("El script de Python terminó con el código: " + exitCode);
+
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static List<String[]> readCSV(String csvFilePath) {
+        List<String[]> data = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFilePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+                data.add(values);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return data;
+    }
+
 
     public Map<Integer, Cell> getcreatedCells() {
         return mapIdCell;

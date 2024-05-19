@@ -70,8 +70,7 @@ public class Launcher {
                             SINGulator_GUI vid = new SINGulator_GUI(singulator, canGUI);
                             Console c = new Console(vid);
                             c.setVisible(true);
-                        }
-                        else {
+                        } else {
                             // No GUI
                             long numberOfSteps = configuration.getNumberOfSteps();
                             int saveSimulationEvery = configuration.getSaveSimEvery();
@@ -150,9 +149,9 @@ public class Launcher {
                                         oldClock = clock;
                                     }
 
-                                }while (steps < numberOfSteps)  ;
+                                } while (steps < numberOfSteps);
 
-                                 state.finish();
+                                state.finish();
 
                                 // We’re not done yet
                                 if (currentJob < totalJobs - 1) {
