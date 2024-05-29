@@ -15,6 +15,7 @@ public class JsonSingulator implements Serializable {
 	private JsonTransporter[] transporters;
 	private JsonFeeder[] feeder;
 	private JsonEvent events;
+	private JsonML ml;
 
 	public JsonSingulator() {
 
@@ -90,5 +91,13 @@ public class JsonSingulator implements Serializable {
 
 	public void setEvents(JsonEvent events) {
 		this.events = events;
+	}
+
+	public JsonML getML() {
+		return ml;
+	}
+
+	public void setML(JsonML ml) {
+		this.ml = ml;
 	}
 }

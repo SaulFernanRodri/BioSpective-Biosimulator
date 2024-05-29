@@ -376,7 +376,6 @@ public class SINGulator_Logic implements Serializable {
 
         if (acceptablePosition) {
             if (!mol.isInDoor() && parent.hasCells) {
-                // TODO: REVISAR. Si no esta en la celula no va a estar en
                 // ninguna capa ya.
                 currentCell = parent.mapIdCell.get(mol.getCellId());
                 if (currentCell != null) {

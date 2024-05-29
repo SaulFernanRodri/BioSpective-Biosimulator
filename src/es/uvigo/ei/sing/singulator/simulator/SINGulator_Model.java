@@ -15,6 +15,7 @@ import es.uvigo.ei.sing.singulator.json.JsonEnvironment;
 import es.uvigo.ei.sing.singulator.json.JsonGeneralConfiguration;
 import es.uvigo.ei.sing.singulator.json.JsonSingulator;
 import es.uvigo.ei.sing.singulator.json.JsonUnity;
+import es.uvigo.ei.sing.singulator.json.JsonML;
 import es.uvigo.ei.sing.singulator.modules.distribution.ExecuteAll;
 import es.uvigo.ei.sing.singulator.modules.distribution.SpaceExtents3D;
 import es.uvigo.ei.sing.singulator.utils.CustomMap;
@@ -67,6 +68,13 @@ public class SINGulator_Model extends SimState {
     public Set<iMolecule> deadAgents;
     public Set<iMolecule> toCreateAgents;
 
+    public boolean flag_ml;
+    public String mlOutput;
+    public JsonML.Parameter mlParameter;
+    public Integer jumps;
+    public String python;
+
+
     public Map<Integer, Integer> mapLayerMolecules;
     public Map<Integer, String> layerZoneNameMap;
     public Map<String, Integer> mapDoorNumber;
@@ -97,6 +105,17 @@ public class SINGulator_Model extends SimState {
 
         // Calculate environment sizes
         calculateEnvironmentSize(singulator);
+
+
+        JsonML ml = singulator.getML();
+        this.flag_ml = ml.isMl();
+        this.mlOutput= ml.getMlOutput();
+        this.mlParameter = ml.getParameter();
+        this.jumps = ml.getJump();
+        this.python = ml.getPython();
+
+
+
 
         JsonGeneralConfiguration configuration = singulator.getGeneralConfiguration();
         this.totalTries = configuration.getTotalTries();
@@ -220,7 +239,6 @@ public class SINGulator_Model extends SimState {
                 public void step(SimState arg0) {
                     long steps = schedule.getSteps();
 
-                    // PROVISIONAL PARA TERMINAR
                     if (finish) {
                         try {
                             System.out.println("TOTAL TIMESTEPS: " + steps);
@@ -245,7 +263,7 @@ public class SINGulator_Model extends SimState {
                     // Write results in output file
                     if (steps % writeResultsEvery == 0) {
                         // PROVISIONAL PARA SACAR VECINDAD
-//						writeFinishedResults();
+					writeFinishedResults();
 
                         String resultsName = fileResultsName + "_" + fileSuffix + ".txt";
 
@@ -302,9 +320,14 @@ public class SINGulator_Model extends SimState {
                             e.printStackTrace();
                         }
                     }
+                    if(mlParameter.getOption().equals("train") && steps % jumps == 0) {
+                        //Data Training
+                        registerDataSimulation();
+                    }
 
-                    registerDataSimulation();
-                    if (steps % writeResultsEvery == 0) {
+                    if(flag_ml && steps % jumps == 0) {
+                        //Script de Python"
+                        registerDataSimulation();
                         executePythonScript();
                     }
 
@@ -321,9 +344,7 @@ public class SINGulator_Model extends SimState {
     public void registerDataSimulation() {
         String DataName = fileResultsName + "_data_" + fileSuffix + ".txt";
 
-        //File dataFile = new File("C:\\Users\\Saul\\Desktop\\TFG\\pathogenic interactions\\data\\data_y\\" + DataName);
-        //File dataFile = new File("C:\\Users\\Curmis4th\\Desktop\\Saul\\pathogenic interactions\\data\\data_peptide10\\" + DataName);
-        File dataFile = new File("D:\\workspace\\saul\\data_y\\" + DataName);
+        File dataFile = new File(mlOutput+ DataName);
         dataFilePath = dataFile.getAbsolutePath();
         List<String> toWriteData = new ArrayList<String>();
 
@@ -569,12 +590,17 @@ public class SINGulator_Model extends SimState {
         return toRet;
     }
 
-    private static void executePythonScript() {
-        // Ruta al script de Python
-        String pythonScriptPath = "C:\\Users\\Saul\\Desktop\\TFG\\BioSpective\\app\\main.py";
-        String param = "-o predict -r \"C:\\Users\\Saul\\Desktop\\TFG\\pathogenic interactions\\data\\data_peptide10\\data.csv\" " +
-                "-j \"C:\\Users\\Saul\\Desktop\\TFG\\pathogenic interactions\\inputs\\Singulator - PCQuorum_1Sm1SmX10_peptide.json\" " +
-                "# -c 2 -n peptide_10 -ts 50 -tg \"mocromolecula\" -csv \"prediction/\"";
+    private  void executePythonScript() {
+
+
+        String pythonScriptPath = python + "\\app\\run.py";
+
+        String param = " -r \"" + mlParameter.getCsv() + "\""
+                + " -j \"" + mlParameter.getJson() + "\""
+                + " -c " + mlParameter.getDivision()
+                + " -ts " + mlParameter.getTs()
+                + " -m\"" + mlParameter.getModel() + "\""
+                + " -r \"" + mlParameter.getResults() + "\"";
 
         // Construye el comando con parámetros
         String[] command = new String[]{"python", pythonScriptPath, param};
@@ -586,10 +612,33 @@ public class SINGulator_Model extends SimState {
             // Inicia el proceso
             Process process = processBuilder.start();
 
+            for (Object obj : environment.allObjects) {
+                if (obj instanceof Cell) {
+                    Cell cell = (Cell) obj;
+                    for (iMolecule agent : cell.getSetMoleculesInside()) {
+                        int cellID = cell.getId();
+                        mapIdCell.get(cellID).removeMoleculeInCell(agent);
+                        // Detener moléculas
+                        agent.putToStop(true);
+                        // Incluir agente muerto
+                        deadAgents.add(agent);
+                    }
+                }
+            }
+
+
             // Captura la salida del proceso
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
             String line;
-            while ((line = reader.readLine()) != null) {
+            System.out.println("Here is the standard output of the command:\n");
+            while ((line = stdInput.readLine()) != null) {
+                System.out.println(line);
+            }
+
+            System.out.println("Here is the standard error of the command (if any):\n");
+            while ((line = stdError.readLine()) != null) {
                 System.out.println(line);
             }
 
@@ -602,6 +651,7 @@ public class SINGulator_Model extends SimState {
         }
     }
 
+    //cambair a un mapa
     private static List<String[]> readCSV(String csvFilePath) {
         List<String[]> data = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(csvFilePath))) {
