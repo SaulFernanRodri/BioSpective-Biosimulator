@@ -1,6 +1,7 @@
 es\uvigo\ei\sing\singulator\utils\Functions$2.class
 es\uvigo\ei\sing\singulator\modules\events\Transform.class
 es\uvigo\ei\sing\singulator\modules\distribution\DoorHelper.class
+es\uvigo\ei\sing\singulator\json\JsonML.class
 es\uvigo\ei\sing\singulator\json\JsonEvent.class
 es\uvigo\ei\sing\singulator\json\JsonReaction.class
 es\uvigo\ei\sing\singulator\modules\events\EventManager.class
@@ -41,6 +42,7 @@ es\uvigo\ei\sing\singulator\interfaces\iMolecule.class
 es\uvigo\ei\sing\singulator\json\JsonCell.class
 es\uvigo\ei\sing\singulator\json\JsonMolecule.class
 es\uvigo\ei\sing\singulator\modules\physics\PhysicsEngine.class
+es\uvigo\ei\sing\singulator\json\JsonML$Parameter.class
 es\uvigo\ei\sing\singulator\agents\Cell.class
 es\uvigo\ei\sing\singulator\json\JsonLayer.class
 es\uvigo\ei\sing\singulator\json\JsonRibosome.class
