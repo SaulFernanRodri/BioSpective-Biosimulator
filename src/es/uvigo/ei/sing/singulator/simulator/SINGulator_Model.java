@@ -263,7 +263,7 @@ public class SINGulator_Model extends SimState {
                     // Write results in output file
                     if (steps % writeResultsEvery == 0) {
                         // PROVISIONAL PARA SACAR VECINDAD
-					writeFinishedResults();
+                        //writeFinishedResults();
 
                         String resultsName = fileResultsName + "_" + fileSuffix + ".txt";
 
@@ -325,11 +325,11 @@ public class SINGulator_Model extends SimState {
                         registerDataSimulation();
                     }
 
-                    if(flag_ml == true && steps % jumps == 0) {
+                   /* if(flag_ml == true && steps % jumps == 0) {
                         //Script de Python"
                         registerDataSimulation();
                         executePythonScript();
-                    }
+                    }*/
 
                 }
             });
