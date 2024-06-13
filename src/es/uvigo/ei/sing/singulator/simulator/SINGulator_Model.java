@@ -325,7 +325,7 @@ public class SINGulator_Model extends SimState {
                         registerDataSimulation();
                     }
 
-                    if(flag_ml && steps % jumps == 0) {
+                    if(flag_ml == true && steps % jumps == 0) {
                         //Script de Python"
                         registerDataSimulation();
                         executePythonScript();
