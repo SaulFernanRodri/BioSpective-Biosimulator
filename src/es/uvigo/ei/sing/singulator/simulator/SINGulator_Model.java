@@ -18,6 +18,7 @@ import es.uvigo.ei.sing.singulator.json.JsonUnity;
 import es.uvigo.ei.sing.singulator.json.JsonML;
 import es.uvigo.ei.sing.singulator.modules.distribution.ExecuteAll;
 import es.uvigo.ei.sing.singulator.modules.distribution.SpaceExtents3D;
+import es.uvigo.ei.sing.singulator.modules.distribution.Sector;
 import es.uvigo.ei.sing.singulator.utils.CustomMap;
 import es.uvigo.ei.sing.singulator.utils.Functions;
 import sim.engine.Schedule;
@@ -325,11 +326,11 @@ public class SINGulator_Model extends SimState {
                         registerDataSimulation();
                     }
 
-                   /* if(flag_ml == true && steps % jumps == 0) {
+                   if(flag_ml == true && steps !=0 && steps % jumps == 0) {
                         //Script de Python"
                         registerDataSimulation();
-                        executePythonScript();
-                    }*/
+                        steps = executePythonScript(steps);
+                    }
 
                 }
             });
@@ -391,6 +392,179 @@ public class SINGulator_Model extends SimState {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static Map<String, Integer> readAgents(String filePath) {
+        Map<String, Integer> map = new HashMap<>();
+        try {
+            // Lee todas las líneas del archivo
+            List<String> allLines = Files.readAllLines(Paths.get(filePath));
+            // Itera sobre las líneas, saltándose el encabezado
+            for (String line : allLines.subList(1, allLines.size())) {
+                String[] columns = line.split(",");
+                if (columns.length >= 4) {
+                    String key = columns[0].trim() + ", " + columns[2].trim();
+                    Integer value = Integer.parseInt(columns[3].trim());
+                    map.put(key, value);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return map;
+    }
+    public static List<Sector> readSectors(String filePath) {
+        List<Sector> sectors = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(", ");
+                if (parts.length == 7) {
+                    int sectorNumber = Integer.parseInt(parts[0]);
+                    double xStart = Double.parseDouble(parts[1]);
+                    double xEnd = Double.parseDouble(parts[2]);
+                    double yStart = Double.parseDouble(parts[3]);
+                    double yEnd = Double.parseDouble(parts[4]);
+                    double zStart = Double.parseDouble(parts[5]);
+                    double zEnd = Double.parseDouble(parts[6]);
+
+                    Sector sector = new Sector(sectorNumber, xStart, xEnd, yStart, yEnd, zStart, zEnd);
+                    sectors.add(sector);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return sectors;
+    }
+
+    public void associateCellsToSectors(List<Sector> sectors) {
+        // Iterar sobre todas las células
+        for (Object obj : environment.allObjects) {
+            if (obj instanceof Cell) {
+                Cell cell = (Cell) obj;
+
+                // Obtener la ubicación de la célula
+                double x = cell.getLocation().x;
+                double y = cell.getLocation().y;
+                double z = cell.getLocation().z;
+
+                // Determinar a qué sector pertenece la célula
+                for (Sector sector : sectors) {
+                    if (x >= sector.getXStart() && x <= sector.getXEnd() &&
+                            y >= sector.getYStart() && y <= sector.getYEnd() &&
+                            z >= sector.getZStart() && z <= sector.getZEnd()) {
+                        // Añadir la célula al sector
+                        sector.addCell(cell);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    public void distributeMoleculesAmongCells(List<Sector> sectors, Map<String, Integer> moleculesPerSector) {
+        for (int i = 0; i < sectors.size(); i++) {
+            Sector sector = sectors.get(i);
+            List<Cell> cells = sector.getCells();
+            int numCells = cells.size();
+
+            for (String moleculeType : moleculesPerSector.keySet()) {
+                int numMolecules = moleculesPerSector.get(moleculeType);
+
+                if (numCells > 0) {
+                    // Si hay células en el sector, distribuye las moléculas entre las células
+                    int moleculesPerCell = numMolecules / numCells;
+                    for (Cell cell : cells) {
+                        for (int j = 0; j < moleculesPerCell; j++) {
+                            // Crear la molécula
+                            for (iMolecule agent : deadAgents) {
+                                if (agent.getName().equals(moleculeType)) {
+                                    deadAgents.remove(agent);
+                                    agent.setInitialPosition(cell.getLocation());
+                                    mapIdCell.get(cell.getId()).addMoleculeToCell(agent);
+                                    agent.putToStop(false);
+                                }
+
+
+                            }
+                        }
+                    }
+                }else{
+                    // Si no hay células en el sector, añade las moléculas al siguiente sector que tenga células
+                    for (int j = i + 1; j < sectors.size(); j++) {
+                        Sector nextSector = sectors.get(j);
+                        if (!nextSector.getCells().isEmpty()) {
+                            moleculesPerSector.put(moleculeType, moleculesPerSector.get(moleculeType) + numMolecules);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private Long executePythonScript( Long steps) {
+
+
+        String pythonScriptPath = python + "\\app\\run.py";
+
+        String param = " -j \"" + mlParameter.getJson() + "\"";
+
+        // Construye el comando con parámetros
+        String[] command = new String[]{"python", pythonScriptPath, param};
+
+        // Crea el ProcessBuilder
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+
+        try {
+            // Inicia el proceso
+            Process process = processBuilder.start();
+
+            for (Object obj : environment.allObjects) {
+                if (obj instanceof Cell) {
+                    Cell cell = (Cell) obj;
+                    for (iMolecule agent : cell.getSetMoleculesInside()) {
+                        int cellID = cell.getId();
+                        mapIdCell.get(cellID).removeMoleculeInCell(agent);
+                        // Detener moléculas
+                        agent.putToStop(true);
+                        // Incluir agente muerto
+                        deadAgents.add(agent);
+                    }
+                }
+            }
+
+            // Captura la salida del proceso
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+            String line;
+            System.out.println("Here is the standard output of the command:\n");
+            while ((line = stdInput.readLine()) != null) {
+                System.out.println(line);
+            }
+
+            System.out.println("Here is the standard error of the command (if any):\n");
+            while ((line = stdError.readLine()) != null) {
+                System.out.println(line);
+            }
+
+            // Espera a que el proceso termine y captura el código de salida
+            int exitCode = process.waitFor();
+            System.out.println("El script de Python terminó con el código: " + exitCode);
+
+            Map<String, Integer> recreateAgents = readAgents(mlOutput + "agents.csv");
+            List<Sector> sectors = readSectors(mlOutput + "limits.csv");
+            associateCellsToSectors(sectors);
+            distributeMoleculesAmongCells(sectors, recreateAgents);
+
+
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return steps + jumps;
     }
 
     @Override
@@ -590,81 +764,6 @@ public class SINGulator_Model extends SimState {
         return toRet;
     }
 
-    private  void executePythonScript() {
-
-
-        String pythonScriptPath = python + "\\app\\run.py";
-
-        String param = " -r \"" + mlParameter.getCsv() + "\""
-                + " -j \"" + mlParameter.getJson() + "\""
-                + " -c " + mlParameter.getDivision()
-                + " -ts " + mlParameter.getTs()
-                + " -m\"" + mlParameter.getModel() + "\""
-                + " -r \"" + mlParameter.getResults() + "\"";
-
-        // Construye el comando con parámetros
-        String[] command = new String[]{"python", pythonScriptPath, param};
-
-        // Crea el ProcessBuilder
-        ProcessBuilder processBuilder = new ProcessBuilder(command);
-
-        try {
-            // Inicia el proceso
-            Process process = processBuilder.start();
-
-            for (Object obj : environment.allObjects) {
-                if (obj instanceof Cell) {
-                    Cell cell = (Cell) obj;
-                    for (iMolecule agent : cell.getSetMoleculesInside()) {
-                        int cellID = cell.getId();
-                        mapIdCell.get(cellID).removeMoleculeInCell(agent);
-                        // Detener moléculas
-                        agent.putToStop(true);
-                        // Incluir agente muerto
-                        deadAgents.add(agent);
-                    }
-                }
-            }
-
-
-            // Captura la salida del proceso
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-
-            String line;
-            System.out.println("Here is the standard output of the command:\n");
-            while ((line = stdInput.readLine()) != null) {
-                System.out.println(line);
-            }
-
-            System.out.println("Here is the standard error of the command (if any):\n");
-            while ((line = stdError.readLine()) != null) {
-                System.out.println(line);
-            }
-
-            // Espera a que el proceso termine y captura el código de salida
-            int exitCode = process.waitFor();
-            System.out.println("El script de Python terminó con el código: " + exitCode);
-
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    //cambair a un mapa
-    private static List<String[]> readCSV(String csvFilePath) {
-        List<String[]> data = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(csvFilePath))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] values = line.split(",");
-                data.add(values);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return data;
-    }
 
 
     public Map<Integer, Cell> getcreatedCells() {
