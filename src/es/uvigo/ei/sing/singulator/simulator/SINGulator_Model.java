@@ -72,7 +72,7 @@ public class SINGulator_Model extends SimState {
     public boolean flag_ml;
     public String mlOutput;
     public JsonML.Parameter mlParameter;
-    public Integer jumps;
+    public Integer jump;
     public String python;
 
 
@@ -112,7 +112,7 @@ public class SINGulator_Model extends SimState {
         this.flag_ml = ml.isMl();
         this.mlOutput= ml.getMlOutput();
         this.mlParameter = ml.getParameter();
-        this.jumps = ml.getJump();
+        this.jump = ml.getJump();
         this.python = ml.getPython();
 
 
@@ -321,12 +321,12 @@ public class SINGulator_Model extends SimState {
                             e.printStackTrace();
                         }
                     }
-                    if(mlParameter.getOption().equals("train") && steps % jumps == 0) {
+                    if(mlParameter.getOption().equals("train") && steps % mlParameter.getTs() == 0) {
                         //Data Training
                         registerDataSimulation();
                     }
 
-                   if(flag_ml == true && steps !=0 && steps % jumps == 0) {
+                    if(flag_ml == true && steps !=0 && steps %  mlParameter.getTs()== 0) {
                         //Script de Python"
                         registerDataSimulation();
                         steps = executePythonScript(steps);
@@ -564,7 +564,7 @@ public class SINGulator_Model extends SimState {
             e.printStackTrace();
         }
 
-        return steps + jumps;
+        return steps + jump;
     }
 
     @Override
