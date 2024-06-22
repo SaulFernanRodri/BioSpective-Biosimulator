@@ -9,6 +9,7 @@ import java.util.*;
 
 import es.uvigo.ei.sing.singulator.agents.Cell;
 import es.uvigo.ei.sing.singulator.agents.Feeder;
+import es.uvigo.ei.sing.singulator.agents.Molecule;
 import es.uvigo.ei.sing.singulator.constants.Constants;
 import es.uvigo.ei.sing.singulator.interfaces.iMolecule;
 import es.uvigo.ei.sing.singulator.json.JsonEnvironment;
@@ -21,6 +22,7 @@ import es.uvigo.ei.sing.singulator.modules.distribution.SpaceExtents3D;
 import es.uvigo.ei.sing.singulator.modules.distribution.Sector;
 import es.uvigo.ei.sing.singulator.utils.CustomMap;
 import es.uvigo.ei.sing.singulator.utils.Functions;
+import sim.app.lsystem.LSystem;
 import sim.engine.Schedule;
 import sim.engine.SimState;
 import sim.engine.Steppable;
@@ -330,7 +332,7 @@ public class SINGulator_Model extends SimState {
                             e.printStackTrace();
                         }
                     }
-                    if(option.equals("train") && steps % ts == 0) {
+                   if(option.equals("train") && steps % ts == 0) {
                         //Data Training
                         registerDataSimulation(0);
                     }
@@ -339,7 +341,6 @@ public class SINGulator_Model extends SimState {
                         //Script de Python"
                         registerDataSimulation(1);
                         executePythonScript();
-                        steps += jump + 1;
                     }
 
                 }
@@ -353,7 +354,7 @@ public class SINGulator_Model extends SimState {
     }
 
     public void registerDataSimulation(int aux) {
-
+        int cont =0;
         String DataName = fileResultsName + "_data_" + fileSuffix + ".txt";
         File dataFile;
         if (aux == 0) {
@@ -385,6 +386,7 @@ public class SINGulator_Model extends SimState {
                         id = String.valueOf(mol.getId());
                         type = mol.getType();
                         name = mol.getName();
+                        cont++;
                     } else {
                         Cell cell = (Cell) obj;
                         x = cell.getLocation().x;
@@ -399,6 +401,7 @@ public class SINGulator_Model extends SimState {
                     toWriteData.add(id + "\t" + schedule.getSteps() + "\t" + type + "\t" + name + "\t" + x + "\t" + y + "\t" + z + "\t" + now);
                 }
             }
+            //System.out.println(cont);
             try {
                 Files.write(Paths.get(dataFile.getPath()), toWriteData, StandardCharsets.UTF_8, Files.exists(Paths.get(dataFile.getPath())) ? StandardOpenOption.APPEND : StandardOpenOption.CREATE);
             } catch (IOException e) {
@@ -410,7 +413,7 @@ public class SINGulator_Model extends SimState {
         }
     }
 
-    public static Map<String, Integer> readAgents(String filePath) {
+    public  Map<String, Integer> readAgents(String filePath) {
         Map<String, Integer> map = new HashMap<>();
         try {
             List<String> allLines = Files.readAllLines(Paths.get(filePath));
@@ -428,7 +431,7 @@ public class SINGulator_Model extends SimState {
         return map;
     }
 
-    public static List<Sector> readSectors(String filePath) {
+    public  List<Sector> readSectors(String filePath) {
         Map<Integer, Sector> sectorMap = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -503,7 +506,7 @@ public class SINGulator_Model extends SimState {
                                         if (agent.getName().equals(moleculeName)) {
                                             iterator.remove();
                                             agent.setInitialPosition(cell.getLocation());
-                                            mapIdCell.get(cell.getId()).addMoleculeToCell(agent);
+                                            environment.allObjects.add(agent);
                                             agent.putToStop(false);
                                             break;
                                         }
@@ -527,8 +530,10 @@ public class SINGulator_Model extends SimState {
     }
 
 
-    private void executePythonScript () {
-
+    private  void executePythonScript () {
+        int cont = 0;
+        int cont1 = 0;
+        int cont2  = 0;
         String pythonExecutable = python + "\\venv\\Scripts\\python.exe";
         String pythonScriptPath = python + "\\app\\run.py";
 
@@ -541,24 +546,32 @@ public class SINGulator_Model extends SimState {
 
         try {
             // Inicia el proceso
-            Process process = processBuilder.start();
 
-                for (Object obj : environment.getAllObjects()) {
-                    if (obj instanceof Cell) {
-                        Cell cell = (Cell) obj;
-                        int cellID = cell.getId();
-                        for (iMolecule agent : cell.getSetMoleculesInside()) {
 
-                            agentsToRemove.add(agent);
-                            agent.putToStop(true);
-                            deadAgents.add(agent);
-                        }
-                        for (iMolecule agent : agentsToRemove) {
-                            mapIdCell.get(cellID).removeMoleculeInCell(agent);
-                        }
-                    }
+            System.out.println(environment.size());
+
+            for (Object obj : environment.getAllObjects()) {
+                if (obj instanceof Cell) {
+                    cont1++;
+                } else if (obj instanceof iMolecule) {
+                    agentsToRemove.add((iMolecule) obj);
+                    deadAgents.add((iMolecule) obj);
+                } else {
+                    cont2++;
                 }
+            }
 
+            for (iMolecule agent : agentsToRemove) {
+                environment.remove(agent);
+            }
+
+            System.out.println(cont1);
+            System.out.println(agentsToRemove.size());
+            System.out.println(cont2);
+            System.out.println(environment.size());
+            System.out.println(deadAgents.size());
+
+            Process process = processBuilder.start();
             // Captura la salida del proceso
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
