@@ -3,6 +3,7 @@ package es.uvigo.ei.sing.singulator.modules.distribution;
 import es.uvigo.ei.sing.singulator.agents.Cell;
 
 import java.util.List;
+import java.util.ArrayList;
 
 public class Sector {
     private int sectorNumber;
@@ -19,6 +20,7 @@ public class Sector {
         this.yEnd = yEnd;
         this.zStart = zStart;
         this.zEnd = zEnd;
+        this.cells = new ArrayList<>();
     }
 
     // Getters

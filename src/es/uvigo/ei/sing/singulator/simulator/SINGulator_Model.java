@@ -28,6 +28,8 @@ import sim.field.continuous.Continuous3D;
 import sim.util.Bag;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class SINGulator_Model extends SimState {
 
@@ -71,9 +73,14 @@ public class SINGulator_Model extends SimState {
 
     public boolean flag_ml;
     public String mlOutput;
-    public JsonML.Parameter mlParameter;
-    public Integer jump;
     public String python;
+    public Integer jump;
+    public Integer ts;
+    public String option;
+    public String json;
+    public String model;
+    public String data;
+
 
 
     public Map<Integer, Integer> mapLayerMolecules;
@@ -111,11 +118,13 @@ public class SINGulator_Model extends SimState {
         JsonML ml = singulator.getML();
         this.flag_ml = ml.isMl();
         this.mlOutput= ml.getMlOutput();
-        this.mlParameter = ml.getParameter();
-        this.jump = ml.getJump();
         this.python = ml.getPython();
-
-
+        this.jump = ml.getJump();
+        this.ts = ml.getTs();
+        this.option = ml.getOption();
+        this.json = ml.getJson();
+        this.model = ml.getModel();
+        this.data = ml.getData();
 
 
         JsonGeneralConfiguration configuration = singulator.getGeneralConfiguration();
@@ -321,15 +330,16 @@ public class SINGulator_Model extends SimState {
                             e.printStackTrace();
                         }
                     }
-                    if(mlParameter.getOption().equals("train") && steps % mlParameter.getTs() == 0) {
+                    if(option.equals("train") && steps % ts == 0) {
                         //Data Training
-                        registerDataSimulation();
+                        registerDataSimulation(0);
                     }
 
-                    if(flag_ml == true && steps !=0 && steps %  mlParameter.getTs()== 0) {
+                    if(flag_ml == true && steps !=0 && steps % ts == 0) {
                         //Script de Python"
-                        registerDataSimulation();
-                        steps = executePythonScript(steps);
+                        registerDataSimulation(1);
+                        executePythonScript();
+                        steps += jump + 1;
                     }
 
                 }
@@ -342,10 +352,16 @@ public class SINGulator_Model extends SimState {
         }
     }
 
-    public void registerDataSimulation() {
-        String DataName = fileResultsName + "_data_" + fileSuffix + ".txt";
+    public void registerDataSimulation(int aux) {
 
-        File dataFile = new File(mlOutput+ DataName);
+        String DataName = fileResultsName + "_data_" + fileSuffix + ".txt";
+        File dataFile;
+        if (aux == 0) {
+            dataFile = new File(data+ DataName);
+        } else {
+            dataFile = new File(mlOutput+ DataName);
+        }
+
         dataFilePath = dataFile.getAbsolutePath();
         List<String> toWriteData = new ArrayList<String>();
 
@@ -397,14 +413,12 @@ public class SINGulator_Model extends SimState {
     public static Map<String, Integer> readAgents(String filePath) {
         Map<String, Integer> map = new HashMap<>();
         try {
-            // Lee todas las líneas del archivo
             List<String> allLines = Files.readAllLines(Paths.get(filePath));
-            // Itera sobre las líneas, saltándose el encabezado
             for (String line : allLines.subList(1, allLines.size())) {
                 String[] columns = line.split(",");
-                if (columns.length >= 4) {
-                    String key = columns[0].trim() + ", " + columns[2].trim();
-                    Integer value = Integer.parseInt(columns[3].trim());
+                if (columns.length >= 3) {
+                    String key = columns[0].trim() + ", " + columns[1].trim(); // Combinación de Sector y Target
+                    Integer value = Integer.parseInt(columns[2].trim());
                     map.put(key, value);
                 }
             }
@@ -413,48 +427,47 @@ public class SINGulator_Model extends SimState {
         }
         return map;
     }
+
     public static List<Sector> readSectors(String filePath) {
-        List<Sector> sectors = new ArrayList<>();
+        Map<Integer, Sector> sectorMap = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
+            reader.readLine(); // Assuming this is to skip the header line
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(", ");
+                String[] parts = line.split(",");
                 if (parts.length == 7) {
-                    int sectorNumber = Integer.parseInt(parts[0]);
-                    double xStart = Double.parseDouble(parts[1]);
-                    double xEnd = Double.parseDouble(parts[2]);
-                    double yStart = Double.parseDouble(parts[3]);
-                    double yEnd = Double.parseDouble(parts[4]);
-                    double zStart = Double.parseDouble(parts[5]);
-                    double zEnd = Double.parseDouble(parts[6]);
+                    int sectorNumber = Integer.parseInt(parts[0].trim());
+                    double xStart = Double.parseDouble(parts[1].trim());
+                    double xEnd = Double.parseDouble(parts[2].trim());
+                    double yStart = Double.parseDouble(parts[3].trim());
+                    double yEnd = Double.parseDouble(parts[4].trim());
+                    double zStart = Double.parseDouble(parts[5].trim());
+                    double zEnd = Double.parseDouble(parts[6].trim());
 
                     Sector sector = new Sector(sectorNumber, xStart, xEnd, yStart, yEnd, zStart, zEnd);
-                    sectors.add(sector);
+                    sectorMap.put(sectorNumber, sector);
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return sectors;
+        return new ArrayList<>(sectorMap.values());
     }
 
     public void associateCellsToSectors(List<Sector> sectors) {
-        // Iterar sobre todas las células
-        for (Object obj : environment.allObjects) {
+        for (Object obj : environment.getAllObjects()) {
             if (obj instanceof Cell) {
                 Cell cell = (Cell) obj;
 
-                // Obtener la ubicación de la célula
                 double x = cell.getLocation().x;
                 double y = cell.getLocation().y;
                 double z = cell.getLocation().z;
 
-                // Determinar a qué sector pertenece la célula
+
                 for (Sector sector : sectors) {
                     if (x >= sector.getXStart() && x <= sector.getXEnd() &&
                             y >= sector.getYStart() && y <= sector.getYEnd() &&
                             z >= sector.getZStart() && z <= sector.getZEnd()) {
-                        // Añadir la célula al sector
                         sector.addCell(cell);
                         break;
                     }
@@ -465,75 +478,86 @@ public class SINGulator_Model extends SimState {
 
     public void distributeMoleculesAmongCells(List<Sector> sectors, Map<String, Integer> moleculesPerSector) {
         for (int i = 0; i < sectors.size(); i++) {
+
             Sector sector = sectors.get(i);
             List<Cell> cells = sector.getCells();
             int numCells = cells.size();
+            int sectorNumber = sector.getSectorNumber();
 
-            for (String moleculeType : moleculesPerSector.keySet()) {
-                int numMolecules = moleculesPerSector.get(moleculeType);
+            for (String moleculeKey : moleculesPerSector.keySet()) {
+                String[] keyParts = moleculeKey.split(", ");
+                int sectorKey = Integer.parseInt(keyParts[0]);
+                String moleculeName = keyParts[1];
 
-                if (numCells > 0) {
-                    // Si hay células en el sector, distribuye las moléculas entre las células
-                    int moleculesPerCell = numMolecules / numCells;
-                    for (Cell cell : cells) {
-                        for (int j = 0; j < moleculesPerCell; j++) {
-                            // Crear la molécula
-                            for (iMolecule agent : deadAgents) {
-                                if (agent.getName().equals(moleculeType)) {
-                                    deadAgents.remove(agent);
-                                    agent.setInitialPosition(cell.getLocation());
-                                    mapIdCell.get(cell.getId()).addMoleculeToCell(agent);
-                                    agent.putToStop(false);
-                                }
+                if (sectorKey == sectorNumber) {
+                    int numMolecules = moleculesPerSector.get(moleculeKey);
 
-
+                    if (numCells > 0) {
+                        // Si hay células en el sector, distribuye las moléculas entre las células
+                        int moleculesPerCell = numMolecules / numCells;
+                        for (Cell cell : cells) {
+                            for (int j = 0; j < moleculesPerCell; j++) {
+                                    Iterator<iMolecule> iterator = deadAgents.iterator();
+                                    while (iterator.hasNext()) {
+                                        iMolecule agent = iterator.next();
+                                        if (agent.getName().equals(moleculeName)) {
+                                            iterator.remove();
+                                            agent.setInitialPosition(cell.getLocation());
+                                            mapIdCell.get(cell.getId()).addMoleculeToCell(agent);
+                                            agent.putToStop(false);
+                                            break;
+                                        }
+                                    }
                             }
                         }
-                    }
-                }else{
-                    // Si no hay células en el sector, añade las moléculas al siguiente sector que tenga células
-                    for (int j = i + 1; j < sectors.size(); j++) {
-                        Sector nextSector = sectors.get(j);
-                        if (!nextSector.getCells().isEmpty()) {
-                            moleculesPerSector.put(moleculeType, moleculesPerSector.get(moleculeType) + numMolecules);
-                            break;
+                    } else {
+                        // Si no hay células en el sector, añade las moléculas al siguiente sector que tenga células
+                        for (int j = i + 1; j < sectors.size(); j++) {
+                            Sector nextSector = sectors.get(j);
+                            if (!nextSector.getCells().isEmpty()) {
+                                moleculesPerSector.put(moleculeKey, moleculesPerSector.get(moleculeKey) + numMolecules);
+                                break;
+                            }
                         }
                     }
                 }
             }
+
         }
     }
 
-    private Long executePythonScript( Long steps) {
 
+    private void executePythonScript () {
 
+        String pythonExecutable = python + "\\venv\\Scripts\\python.exe";
         String pythonScriptPath = python + "\\app\\run.py";
 
-        String param = " -j \"" + mlParameter.getJson() + "\"";
-
         // Construye el comando con parámetros
-        String[] command = new String[]{"python", pythonScriptPath, param};
+        String[] command = new String[]{pythonExecutable, pythonScriptPath, "-j",json};
 
         // Crea el ProcessBuilder
         ProcessBuilder processBuilder = new ProcessBuilder(command);
+        List<iMolecule> agentsToRemove = new ArrayList<>();
 
         try {
             // Inicia el proceso
             Process process = processBuilder.start();
 
-            for (Object obj : environment.allObjects) {
-                if (obj instanceof Cell) {
-                    Cell cell = (Cell) obj;
-                    for (iMolecule agent : cell.getSetMoleculesInside()) {
+                for (Object obj : environment.getAllObjects()) {
+                    if (obj instanceof Cell) {
+                        Cell cell = (Cell) obj;
                         int cellID = cell.getId();
-                        mapIdCell.get(cellID).removeMoleculeInCell(agent);
-                        // Detener moléculas
-                        agent.putToStop(true);
-                        // Incluir agente muerto
-                        deadAgents.add(agent);
+                        for (iMolecule agent : cell.getSetMoleculesInside()) {
+
+                            agentsToRemove.add(agent);
+                            agent.putToStop(true);
+                            deadAgents.add(agent);
+                        }
+                        for (iMolecule agent : agentsToRemove) {
+                            mapIdCell.get(cellID).removeMoleculeInCell(agent);
+                        }
                     }
                 }
-            }
 
             // Captura la salida del proceso
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -554,7 +578,7 @@ public class SINGulator_Model extends SimState {
             int exitCode = process.waitFor();
             System.out.println("El script de Python terminó con el código: " + exitCode);
 
-            Map<String, Integer> recreateAgents = readAgents(mlOutput + "agents.csv");
+            Map<String, Integer> recreateAgents = readAgents(mlOutput + "predictions.csv");
             List<Sector> sectors = readSectors(mlOutput + "limits.csv");
             associateCellsToSectors(sectors);
             distributeMoleculesAmongCells(sectors, recreateAgents);
@@ -563,8 +587,6 @@ public class SINGulator_Model extends SimState {
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-
-        return steps + jump;
     }
 
     @Override
