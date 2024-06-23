@@ -541,6 +541,7 @@ public class SINGulator_Model extends SimState {
                 environment.remove(agent);
             }
 
+
             Process process = processBuilder.start();
             // Captura la salida del proceso
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
