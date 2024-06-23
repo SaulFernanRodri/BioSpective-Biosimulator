@@ -78,7 +78,6 @@ public class SINGulator_Model extends SimState {
     public Integer ts;
     public String option;
     public String json;
-    public String model;
     public String data;
 
 
@@ -126,7 +125,6 @@ public class SINGulator_Model extends SimState {
         this.ts = ml.getTs();
         this.option = ml.getOption();
         this.json = ml.getJson();
-        this.model = ml.getModel();
         this.data = ml.getData();
 
 

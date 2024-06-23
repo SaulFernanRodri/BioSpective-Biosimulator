@@ -1,6 +1,7 @@
 package es.uvigo.ei.sing.singulator.json;
 
 import java.io.Serializable;
+import java.util.List;
 
 public class JsonML implements Serializable {
 
@@ -14,8 +15,8 @@ public class JsonML implements Serializable {
     private String option;
     private int division;
     private String json;
-    private String model;
-    private String target;
+    private List<String> models;
+    private List<String> targets;
     private String data;
 
 
@@ -86,20 +87,20 @@ public class JsonML implements Serializable {
         this.json = json;
     }
 
-    public String getModel() {
-        return model;
+    public List<String> getModels() {
+        return models;
     }
 
-    public void setModel(String model) {
-        this.model = model;
+    public void setModels(List<String> models) {
+        this.models = models;
     }
 
-    public String getTarget() {
-        return target;
+    public List<String> getTargets() {
+        return targets;
     }
 
-    public void setTarget(String target) {
-        this.target = target;
+    public void setTargets(List<String> targets) {
+        this.targets = targets;
     }
 
     public String getData() {
