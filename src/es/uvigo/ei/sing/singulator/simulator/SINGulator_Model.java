@@ -9,7 +9,6 @@ import java.util.*;
 
 import es.uvigo.ei.sing.singulator.agents.Cell;
 import es.uvigo.ei.sing.singulator.agents.Feeder;
-import es.uvigo.ei.sing.singulator.agents.Molecule;
 import es.uvigo.ei.sing.singulator.constants.Constants;
 import es.uvigo.ei.sing.singulator.interfaces.iMolecule;
 import es.uvigo.ei.sing.singulator.json.JsonEnvironment;
@@ -28,10 +27,9 @@ import sim.engine.SimState;
 import sim.engine.Steppable;
 import sim.field.continuous.Continuous3D;
 import sim.util.Bag;
+import sim.util.Double3D;
 
 import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 public class SINGulator_Model extends SimState {
 
@@ -103,6 +101,9 @@ public class SINGulator_Model extends SimState {
     public SpaceExtents3D sExtents;
     public List<Feeder> feederList;
     public JsonSingulator singulator;
+
+
+    public List<iMolecule> agentsToRecreate = new ArrayList<>();
 
     // PCQUORUM DEPENDANCE
     boolean finish = false;
@@ -480,60 +481,46 @@ public class SINGulator_Model extends SimState {
     }
 
     public void distributeMoleculesAmongCells(List<Sector> sectors, Map<String, Integer> moleculesPerSector) {
-        for (int i = 0; i < sectors.size(); i++) {
+        int aux=0;
+        double x=0;
+        double y=0;
+        double z=0;
+        int numMolecules = 0;
+        Random random = new Random();
+        Double3D Location;
 
-            Sector sector = sectors.get(i);
-            List<Cell> cells = sector.getCells();
-            int numCells = cells.size();
+        for (Sector sector : sectors) {
             int sectorNumber = sector.getSectorNumber();
-
             for (String moleculeKey : moleculesPerSector.keySet()) {
                 String[] keyParts = moleculeKey.split(", ");
                 int sectorKey = Integer.parseInt(keyParts[0]);
                 String moleculeName = keyParts[1];
-
                 if (sectorKey == sectorNumber) {
-                    int numMolecules = moleculesPerSector.get(moleculeKey);
-
-                    if (numCells > 0) {
-                        // Si hay células en el sector, distribuye las moléculas entre las células
-                        int moleculesPerCell = numMolecules / numCells;
-                        for (Cell cell : cells) {
-                            for (int j = 0; j < moleculesPerCell; j++) {
-                                    Iterator<iMolecule> iterator = deadAgents.iterator();
-                                    while (iterator.hasNext()) {
-                                        iMolecule agent = iterator.next();
-                                        if (agent.getName().equals(moleculeName)) {
-                                            iterator.remove();
-                                            agent.setInitialPosition(cell.getLocation());
-                                            environment.allObjects.add(agent);
-                                            agent.putToStop(false);
-                                            break;
-                                        }
-                                    }
-                            }
-                        }
-                    } else {
-                        // Si no hay células en el sector, añade las moléculas al siguiente sector que tenga células
-                        for (int j = i + 1; j < sectors.size(); j++) {
-                            Sector nextSector = sectors.get(j);
-                            if (!nextSector.getCells().isEmpty()) {
-                                moleculesPerSector.put(moleculeKey, moleculesPerSector.get(moleculeKey) + numMolecules);
-                                break;
-                            }
+                    numMolecules = moleculesPerSector.get(moleculeKey);
+                    Iterator<iMolecule> iterator = agentsToRecreate.iterator();
+                    while (iterator.hasNext() && aux < numMolecules) {
+                        iMolecule agent = iterator.next();
+                        if (agent.getName().equals(moleculeName)) {
+                            iterator.remove();
+                            x = random.nextDouble() * (sector.getXEnd() - sector.getXStart()) + sector.getXStart();
+                            y = random.nextDouble() * (sector.getYEnd() - sector.getYStart()) + sector.getYStart();
+                            z = random.nextDouble() * (sector.getZEnd() - sector.getZStart()) + sector.getZStart();
+                            Location = new Double3D(x, y, z);
+                            environment.setObjectLocation(agent, Location);
+                            agent.putToStop(false);
+                            aux++;
                         }
                     }
                 }
-            }
 
+            }
+            aux=0;
         }
+        agentsToRecreate.clear();
     }
 
 
-    private  void executePythonScript () {
-        int cont = 0;
-        int cont1 = 0;
-        int cont2  = 0;
+    private void executePythonScript () {
         String pythonExecutable = python + "\\venv\\Scripts\\python.exe";
         String pythonScriptPath = python + "\\app\\run.py";
 
@@ -542,34 +529,19 @@ public class SINGulator_Model extends SimState {
 
         // Crea el ProcessBuilder
         ProcessBuilder processBuilder = new ProcessBuilder(command);
-        List<iMolecule> agentsToRemove = new ArrayList<>();
 
         try {
-            // Inicia el proceso
-
-
-            System.out.println(environment.size());
 
             for (Object obj : environment.getAllObjects()) {
-                if (obj instanceof Cell) {
-                    cont1++;
-                } else if (obj instanceof iMolecule) {
-                    agentsToRemove.add((iMolecule) obj);
+                 if (obj instanceof iMolecule) {
+                     agentsToRecreate.add((iMolecule) obj);
                     deadAgents.add((iMolecule) obj);
-                } else {
-                    cont2++;
                 }
             }
 
-            for (iMolecule agent : agentsToRemove) {
+            for (iMolecule agent : agentsToRecreate) {
                 environment.remove(agent);
             }
-
-            System.out.println(cont1);
-            System.out.println(agentsToRemove.size());
-            System.out.println(cont2);
-            System.out.println(environment.size());
-            System.out.println(deadAgents.size());
 
             Process process = processBuilder.start();
             // Captura la salida del proceso
@@ -577,6 +549,7 @@ public class SINGulator_Model extends SimState {
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
 
             String line;
+            System.out.println("BioSpective (ML)\n");
             System.out.println("Here is the standard output of the command:\n");
             while ((line = stdInput.readLine()) != null) {
                 System.out.println(line);
@@ -589,13 +562,16 @@ public class SINGulator_Model extends SimState {
 
             // Espera a que el proceso termine y captura el código de salida
             int exitCode = process.waitFor();
-            System.out.println("El script de Python terminó con el código: " + exitCode);
+            System.out.println("The Python script finished with the code: " + exitCode);
+
+            System.out.println("Jumped successfully: " + jump + "\n");
+            System.out.println("Recreating agents...\n");
 
             Map<String, Integer> recreateAgents = readAgents(mlOutput + "predictions.csv");
             List<Sector> sectors = readSectors(mlOutput + "limits.csv");
             associateCellsToSectors(sectors);
             distributeMoleculesAmongCells(sectors, recreateAgents);
-
+            System.out.println("Continue BioSimulation...\n");
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();

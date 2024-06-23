@@ -11,6 +11,7 @@ es\uvigo\ei\sing\singulator\agents\Feeder.class
 es\uvigo\ei\sing\singulator\agents\SphereMolecule.class
 es\uvigo\ei\sing\singulator\interfaces\iLayer.class
 es\uvigo\ei\sing\singulator\json\JsonTransporter.class
+es\uvigo\ei\sing\singulator\modules\distribution\Sector.class
 es\uvigo\ei\sing\singulator\simulator\Launcher$1.class
 es\uvigo\ei\sing\singulator\simulator\SINGulator_Initialize.class
 es\uvigo\ei\sing\singulator\modules\distribution\CreateMoleculeHelper.class
@@ -42,7 +43,6 @@ es\uvigo\ei\sing\singulator\interfaces\iMolecule.class
 es\uvigo\ei\sing\singulator\json\JsonCell.class
 es\uvigo\ei\sing\singulator\json\JsonMolecule.class
 es\uvigo\ei\sing\singulator\modules\physics\PhysicsEngine.class
-es\uvigo\ei\sing\singulator\json\JsonML$Parameter.class
 es\uvigo\ei\sing\singulator\agents\Cell.class
 es\uvigo\ei\sing\singulator\json\JsonLayer.class
 es\uvigo\ei\sing\singulator\json\JsonRibosome.class
